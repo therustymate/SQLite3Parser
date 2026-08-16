@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="color-scheme" content="dark">
+    <title>SQLite3Parser - @therustymate</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <main class="app-shell">
+        <header class="appbar">
+            <div class="brand-block">
+                <div class="db-mark" aria-hidden="true">
+                    <span></span><span></span><span></span>
+                </div>
+                <div>
+                    <h1>SQLite3Parser</h1>
+                    <p>Local SQLite database viewer</p>
+                </div>
+            </div>
+
+            <div class="file-meta">
+                <span class="file-pill"><strong id="fileName">No file loaded</strong></span>
+                <span id="fileSize">—</span>
+                <span><strong id="tableCount">0</strong> tables</span>
+                <span><strong id="pageCount">0</strong> pages</span>
+                <span><strong id="schemaCount">0</strong> objects</span>
+            </div>
+
+            <div class="app-actions">
+                <button id="openFileButton" class="btn btn-primary" type="button">Open database</button>
+                <button id="clearButton" class="btn" type="button" disabled>Close</button>
+                <input id="dbFile" type="file" accept=".db,.sqlite,.sqlite3,.db3,application/x-sqlite3" hidden>
+            </div>
+        </header>
+
+        <section id="dropZone" class="drop-strip" tabindex="0" role="button"
+            aria-label="Open or drop a SQLite database">
+            <span class="drop-icon">＋</span>
+            <span class="drop-main">Drop a SQLite database anywhere here</span>
+            <span class="drop-sub">Everything stays in your browser.</span>
+            <span id="status" class="drop-zone-status">Ready</span>
+        </section>
+
+        <section class="viewer-shell">
+            <aside class="sidebar">
+                <div class="sidebar-titlebar">
+                    <span>DATABASE</span>
+                    <span class="sidebar-dot" aria-hidden="true"></span>
+                </div>
+
+                <div class="sidebar-scroll">
+                    <section class="sidebar-group objects-group">
+                        <div class="group-heading">
+                            <span>Objects</span>
+                            <span id="tableCountSide" class="group-count">schema</span>
+                        </div>
+                        <div id="schemaView" class="empty side-empty">Open a database to browse objects.</div>
+                    </section>
+
+                    <details class="sidebar-group" open>
+                        <summary>Database info</summary>
+                        <div id="headerView" class="kv-list empty">No database loaded.</div>
+                    </details>
+                </div>
+            </aside>
+
+            <section class="content-pane">
+                <div class="content-toolbar">
+                    <div class="view-tabs" aria-label="Database view">
+                        <button class="view-tab active" type="button" data-view="data">Data</button>
+                        <button class="view-tab" type="button" data-view="sql">SQL</button>
+                        <button class="view-tab" type="button" data-view="raw">RAW</button>
+                    </div>
+
+                    <label class="toolbar-field table-field">
+                        <span>Table</span>
+                        <select id="tableSelect" disabled>
+                            <option value="">Select table</option>
+                        </select>
+                    </label>
+
+                    <span id="recordSummary" class="record-summary">Select a table to inspect records.</span>
+                </div>
+
+                <section id="dataPanel" class="workspace-panel active">
+                    <div class="grid-toolbar">
+                        <div class="grid-title"><span class="grid-icon">▦</span><strong>Records</strong></div>
+                        <div class="grid-tools">
+                            <label class="data-search" title="Search all loaded rows in this table">
+                                <span class="search-icon" aria-hidden="true">⌕</span>
+                                <input id="dataSearchInput" type="search" placeholder="Search table..."
+                                    autocomplete="off" spellcheck="false" disabled>
+                                <button id="clearDataSearch" class="search-clear" type="button" title="Clear search"
+                                    aria-label="Clear search" disabled>×</button>
+                            </label>
+                            <span id="searchResultCount" class="search-result-count"></span>
+                            <div id="dataPager" class="data-pager" aria-label="Record pagination">
+                                <button id="firstPageButton" class="btn btn-small pager-button" type="button" disabled
+                                    title="First page">«</button>
+                                <button id="prevPageButton" class="btn btn-small pager-button" type="button" disabled
+                                    title="Previous page">‹</button>
+                                <span id="pageIndicator" class="page-indicator">Page 0 / 0</span>
+                                <button id="nextPageButton" class="btn btn-small pager-button" type="button" disabled
+                                    title="Next page">›</button>
+                                <button id="lastPageButton" class="btn btn-small pager-button" type="button" disabled
+                                    title="Last page">»</button>
+                                <label class="page-size-field">Rows
+                                    <select id="dataPageSize" disabled>
+                                        <option value="50">50</option>
+                                        <option value="100" selected>100</option>
+                                        <option value="250">250</option>
+                                        <option value="500">500</option>
+                                    </select>
+                                </label>
+                            </div>
+                            <span class="readonly-badge">READ ONLY</span><span class="privacy-badge">LOCAL</span>
+                        </div>
+                    </div>
+                    <div class="data-body">
+                        <div id="tableView" class="empty main-empty">
+                            <div class="empty-state">
+                                <div class="empty-db-icon" aria-hidden="true">▤</div><strong>No table
+                                    selected</strong><span>Choose a table from the database explorer.</span>
+                            </div>
+                        </div>
+
+                        <aside id="cellInspector" class="cell-inspector">
+                            <div class="cell-inspector-head">
+                                <div>
+                                    <strong>Cell RAW</strong>
+                                    <span id="cellInspectorHint">Click any cell</span>
+                                </div>
+                                <button id="clearCellSelection" class="btn btn-small" type="button"
+                                    disabled>Clear</button>
+                            </div>
+
+                            <div class="cell-meta-grid">
+                                <span>Table</span><strong id="cellTable">—</strong>
+                                <span>Column</span><strong id="cellColumn">—</strong>
+                                <span>Rowid</span><strong id="cellRowid">—</strong>
+                                <span>Type</span><strong id="cellType">—</strong>
+                                <span>Serial</span><strong id="cellSerial">—</strong>
+                                <span>Bytes</span><strong id="cellLength">0</strong>
+                            </div>
+
+                            <section class="copy-block">
+                                <div class="copy-block-head"><span>Hex</span><button class="copy-btn" type="button"
+                                        data-copy-target="cellHex">Copy</button></div>
+                                <textarea id="cellHex" readonly spellcheck="false"
+                                    placeholder="Select a cell to inspect its raw bytes."></textarea>
+                            </section>
+
+                            <section class="copy-block">
+                                <div class="copy-block-head"><span>ASCII</span><button class="copy-btn" type="button"
+                                        data-copy-target="cellAscii">Copy</button></div>
+                                <textarea id="cellAscii" readonly spellcheck="false"></textarea>
+                            </section>
+
+                            <section class="copy-block value-block">
+                                <div class="copy-block-head"><span>Value</span><button class="copy-btn" type="button"
+                                        data-copy-target="cellValue">Copy</button></div>
+                                <textarea id="cellValue" readonly spellcheck="false"></textarea>
+                            </section>
+                        </aside>
+                    </div>
+                </section>
+
+                <section id="sqlPanel" class="workspace-panel sql-panel">
+                    <textarea id="sqlInput" class="sql-editor" spellcheck="false"
+                        placeholder="SELECT * FROM users LIMIT 100;">SELECT * FROM sqlite_schema LIMIT 100;</textarea>
+                    <div class="sql-actions">
+                        <button id="runSqlButton" class="btn btn-primary" type="button" disabled>Run</button>
+                        <button id="clearSqlButton" class="btn btn-small" type="button">Clear</button>
+                        <span class="sql-help">Read-only subset: SELECT columns FROM table [WHERE col = value] [LIMIT
+                            n]</span>
+                    </div>
+                    <div id="sqlResult" class="sql-result empty">Open a database and run a SELECT query.</div>
+                </section>
+
+                <section id="rawPanel" class="workspace-panel raw-panel">
+                    <div class="raw-toolbar">
+                        <label>Source <select id="rawSource" disabled>
+                                <option value="file">Entire file</option>
+                                <option value="page">Page</option>
+                                <option value="blob">Selected BLOB</option>
+                            </select></label>
+                        <label>Offset <input id="rawOffset" type="number" min="0" value="0" disabled></label>
+                        <label>Length <input id="rawLength" type="number" min="1" max="65536" value="512"
+                                disabled></label>
+                        <label>Page <input id="rawPage" type="number" min="1" value="1" disabled></label>
+                        <button id="renderRawButton" class="btn btn-small" type="button" disabled>View bytes</button>
+                        <span id="rawMeta" class="raw-meta">No data</span>
+                    </div>
+                    <pre id="rawView" class="raw-view">No data loaded.</pre>
+                </section>
+
+                <section class="inspector-dock">
+                    <div class="dock-bar">
+                        <div class="dock-title">
+                            <span>Page Inspector</span>
+                            <small>B-tree header + first 128 bytes</small>
+                        </div>
+                        <div class="page-controls">
+                            <label>
+                                <span>Page</span>
+                                <input id="pageNumber" type="number" min="1" value="1" disabled>
+                            </label>
+                            <button id="inspectPage" class="btn btn-small" type="button" disabled>Inspect</button>
+                        </div>
+                    </div>
+                    <pre id="pageView" class="code-block">No data loaded.</pre>
+                </section>
+            </section>
+        </section>
+
+        <footer class="statusbar">
+            <span>SQLite file format parser</span>
+            <span>HTML · CSS · JavaScript only</span>
+            <span>No WASM · No upload · Read only</span>
+        </footer>
+    </main>
+
+    <script src="script.js"></script>
+</body>
+
+</html>
